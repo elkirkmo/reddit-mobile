@@ -4,7 +4,21 @@ cache:
 
 build:
   image: quay.io/reddit/reddit-nodejs:latest
+  # Always re-pull the image, since we're re-using the same tag.
   pull: true
+  # The client payload needs access to a subset of the application's
+  # environment variables. This is a a consequence of Webpack shimming
+  # process.env.ENV on the client (We could eventually work around this)
+  # by pulling the subset of client env vars in on the server, and passing
+  # them to the client, but its somewhat hack-y.
+  # NOTE: These are secrets exclusively for the build step, and are not in
+  # in-sync with the staging secrets defined in puppet, you'll need to ask
+  # I/O to update these.
+  environment:
+    TRACKER_CLIENT_NAME: $$MWEB_TRACKER_CLIENT_NAME
+    TRACKER_ENDPOINT: $$MWEB_TRACKER_ENDPOINT
+    TRACKER_KEY: $$MWEB_TRACKER_KEY
+    TRACKER_SECRET: $$MWEB_TRACKER_SECRET
   commands:
     - npm install
     - npm run lint
