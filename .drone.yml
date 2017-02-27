@@ -15,10 +15,10 @@ build:
   # in-sync with the staging secrets defined in puppet, you'll need to ask
   # I/O to update these.
   environment:
-    TRACKER_CLIENT_NAME: $$MWEB_TRACKER_CLIENT_NAME
-    TRACKER_ENDPOINT: $$MWEB_TRACKER_ENDPOINT
-    TRACKER_KEY: $$MWEB_TRACKER_KEY
-    TRACKER_SECRET: $$MWEB_TRACKER_SECRET
+    - TRACKER_CLIENT_NAME=$$MWEB_TRACKER_CLIENT_NAME
+    - TRACKER_ENDPOINT=$$MWEB_TRACKER_ENDPOINT
+    - TRACKER_KEY=$$MWEB_TRACKER_KEY
+    - TRACKER_SECRET=$$MWEB_TRACKER_SECRET
   commands:
     - npm install
     - npm run lint
