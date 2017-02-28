@@ -54,6 +54,8 @@ export function getBranchLink(state, payload={}) {
     // including user token or anything else!
     '$og_redirect': window.location.href,
     '$deeplink_path': window.location.href.split(window.location.host)[1],
+    // android deep links expect reddit/
+    '$android_deeplink_path': `reddit${window.location.href.split(window.location.host)[1]}`,
     mweb_loid: loid,
     mweb_loid_created: loidCreated,
     mweb_user_id36: userId,

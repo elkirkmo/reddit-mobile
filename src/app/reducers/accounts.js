@@ -12,7 +12,21 @@ export default function(state=DEFAULT, action={}) {
     }
 
     case accountActions.RECEIVED_ACCOUNT: {
-      const { accounts } = action.apiResponse;
+      let { accounts } = action.apiResponse;
+
+      Object.keys(accounts).forEach(accountName => {
+        const account = accounts[accountName];
+        accounts[accountName] = account.set({
+          features: {
+            ...(account.features || {}),
+            mweb_xpromo_interstitial_comments_android: {
+              owner: 'channels',
+              experiment_id: 137,
+              variant: 'treatment',
+            },
+          },
+        });
+      });
       return mergeAPIModels(state, accounts);
     }
 
