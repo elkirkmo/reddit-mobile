@@ -95,6 +95,10 @@ const config = () => ({
 
   // Note that this is a public key, so this can be shared.
   recaptchaSitekey: process.env.RECAPTCHA_SITEKEY || '6LeTnxkTAAAAAN9QEuDZRpn90WwKk_R1TRW_g-JC',
+
+  placeDomain: process.env.PLACE_DOMAIN || 'https://www.reddit.com',
+
+  branchKey: process.env.BRANCH_KEY || 'XXX_BRANCH_KEY',
 });
 
 export default config();

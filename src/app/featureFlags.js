@@ -1,22 +1,31 @@
 import Flags from '@r/flags';
-import omitBy from 'lodash/omitBy';
-import isNull from 'lodash/isNull';
 import sha1 from 'crypto-js/sha1';
 import url from 'url';
-import { flags as flagConstants } from 'app/constants';
+import {
+  OPT_OUT_XPROMO_INTERSTITIAL,
+  flags as flagConstants,
+} from 'app/constants';
+import {
+  MODAL_EXPERIMENT_LIST as RULES_MODAL_EXPERIMENT_SUBREDDITS,
+  XPROMO_EXCLUDE_LIST as RULES_XPROMO_SUBREDDITS,
+} from 'app/subredditRulesList';
 import getSubreddit from 'lib/getSubredditFromState';
 import getRouteMetaFromState from 'lib/getRouteMetaFromState';
 import getContentId from 'lib/getContentIdFromState';
-import { featureEnabled, extractUser, getExperimentData } from 'lib/experiments';
-import { getEventTracker } from 'lib/eventTracker';
-import { getBasePayload } from 'lib/eventUtils';
-import { getDevice, IPHONE, IOS_DEVICES, ANDROID } from 'lib/getDeviceFromState';
 import isFakeSubreddit from 'lib/isFakeSubreddit';
+import { getDevice, IPHONE, ANDROID } from 'lib/getDeviceFromState';
+import { trackBucketingEvents } from 'lib/eventUtils';
+import {
+  featureEnabled,
+  extractUser,
+  getExperimentData,
+} from 'lib/experiments';
 
 const {
   BETA,
-  SMARTBANNER,
+  XPROMOBANNER,
   USE_BRANCH,
+  // Recommended Content experiments
   VARIANT_NEXTCONTENT_BOTTOM,
   VARIANT_RECOMMENDED_BOTTOM,
   VARIANT_RECOMMENDED_TOP,
@@ -28,24 +37,60 @@ const {
   VARIANT_RECOMMENDED_BY_POST_HOT,
   VARIANT_RECOMMENDED_SIMILAR_POSTS,
   VARIANT_SUBREDDIT_HEADER,
+  VARIANT_TITLE_EXPANDO,
+  VARIANT_MIXED_VIEW,
+  SHOW_AMP_LINK,
+  RULES_MODAL_ON_SUBMIT_CLICK_ANYWHERE,
+  RULES_MODAL_ON_SUBMIT_CLICK_BUTTON,
+  RULES_MODAL_ON_COMMENT_CLICK_ANYWHERE,
+  RULES_MODAL_ON_COMMENT_CLICK_BUTTON,
+
+  // Removing defaults experiment
+  VARIANT_DEFAULT_SRS_TUTORIAL,
+  VARIANT_DEFAULT_SRS_POPULAR,
+
+  // Xpromo ----------------------------------------------------------------------
+  // Login Required
   VARIANT_XPROMO_LOGIN_REQUIRED_IOS,
   VARIANT_XPROMO_LOGIN_REQUIRED_ANDROID,
   VARIANT_XPROMO_LOGIN_REQUIRED_IOS_CONTROL,
   VARIANT_XPROMO_LOGIN_REQUIRED_ANDROID_CONTROL,
+
+  // Comments
   VARIANT_XPROMO_INTERSTITIAL_COMMENTS_IOS,
   VARIANT_XPROMO_INTERSTITIAL_COMMENTS_ANDROID,
-  VARIANT_TITLE_EXPANDO,
-  VARIANT_MIXED_VIEW,
-  SHOW_AMP_LINK,
+
+  // Modal Listing Click
+  VARIANT_MODAL_LISTING_CLICK_IOS,
+  VARIANT_MODAL_LISTING_CLICK_ANDROID,
+
+  // Interstitial frequency
+  VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_IOS,
+  VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_ANDROID,
+  VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_IOS_CONTROL,
+  VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_ANDROID_CONTROL,
+
+  // Persistent Xpromo
+  VARIANT_XPROMO_PERSISTENT_IOS,
+  VARIANT_XPROMO_PERSISTENT_ANDROID,
+
+  // Ad loading (preloader and Mobile App redirect button)
+  VARIANT_XPROMO_AD_LOADING_IOS,
+  VARIANT_XPROMO_AD_LOADING_ANDROID,
 } = flagConstants;
 
 const config = {
   [BETA]: true,
-  [SMARTBANNER]: {
+
+  [XPROMOBANNER]: {
     and: [
-      { allowedPages: ['index', 'listing'] },
+      { notOptedOut: OPT_OUT_XPROMO_INTERSTITIAL.STORE_KEY },
+      { allowedPages: ['index', 'listing', 'comments'] },
       { allowNSFW: false },
-      { allowedDevices: IOS_DEVICES.concat(ANDROID) },
+      { allowedDevices: [IPHONE, ANDROID] },
+      { not: {
+        subreddits: RULES_XPROMO_SUBREDDITS },
+      },
     ],
   },
   [USE_BRANCH]: true,
@@ -147,8 +192,8 @@ const config = {
   },
   [VARIANT_XPROMO_LOGIN_REQUIRED_IOS]: {
     and: [
+      { loggedin: false },
       { allowedDevices: [IPHONE] },
-      { allowNSFW: false },
       { allowedPages: ['index', 'listing'] },
       { or: [
         { url: 'xpromologinrequired' },
@@ -158,8 +203,8 @@ const config = {
   },
   [VARIANT_XPROMO_LOGIN_REQUIRED_IOS_CONTROL]: {
     and: [
+      { loggedin: false },
       { allowedDevices: [IPHONE] },
-      { allowNSFW: false },
       { allowedPages: ['index', 'listing'] },
       { or: [
         { variant: 'mweb_xpromo_require_login_ios:control_1' },
@@ -169,8 +214,8 @@ const config = {
   },
   [VARIANT_XPROMO_LOGIN_REQUIRED_ANDROID]: {
     and: [
+      { loggedin: false },
       { allowedDevices: [ANDROID] },
-      { allowNSFW: false },
       { allowedPages: ['index', 'listing'] },
       { or: [
         { url: 'xpromologinrequired' },
@@ -180,12 +225,80 @@ const config = {
   },
   [VARIANT_XPROMO_LOGIN_REQUIRED_ANDROID_CONTROL]: {
     and: [
+      { loggedin: false },
       { allowedDevices: [ANDROID] },
-      { allowNSFW: false },
       { allowedPages: ['index', 'listing'] },
       { or: [
         { variant: 'mweb_xpromo_require_login_android:control_1' },
         { variant: 'mweb_xpromo_require_login_android:control_2' },
+      ] },
+    ],
+  },
+  [VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_IOS]: {
+    and: [
+      { allowedDevices: [IPHONE] },
+      { or: [
+        { variant: 'mweb_xpromo_interstitial_frequency_ios:every_day' },
+        { variant: 'mweb_xpromo_interstitial_frequency_ios:every_three_days' },
+        { variant: 'mweb_xpromo_interstitial_frequency_ios:every_week' },
+        { variant: 'mweb_xpromo_interstitial_frequency_ios:every_two_weeks' },
+      ] },
+    ],
+  },
+  [VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_ANDROID]: {
+    and: [
+      { allowedDevices: [ANDROID] },
+      { or: [
+        { variant: 'mweb_xpromo_interstitial_frequency_android:every_day' },
+        { variant: 'mweb_xpromo_interstitial_frequency_android:every_three_days' },
+        { variant: 'mweb_xpromo_interstitial_frequency_android:every_week' },
+        { variant: 'mweb_xpromo_interstitial_frequency_android:every_two_weeks' },
+      ] },
+    ],
+  },
+  [VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_IOS_CONTROL]: {
+    and: [
+      { allowedDevices: [IPHONE] },
+      { or: [
+        { variant: 'mweb_xpromo_interstitial_frequency_ios:control_1' },
+        { variant: 'mweb_xpromo_interstitial_frequency_ios:control_2' },
+      ] },
+    ],
+  },
+  [VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_ANDROID_CONTROL]: {
+    and: [
+      { allowedDevices: [ANDROID] },
+      { or: [
+        { variant: 'mweb_xpromo_interstitial_frequency_android:control_1' },
+        { variant: 'mweb_xpromo_interstitial_frequency_android:control_2' },
+      ] },
+    ],
+  },
+  [VARIANT_XPROMO_PERSISTENT_IOS]: {
+    and: [
+      { allowedDevices: [IPHONE] },
+      { allowedPages: ['index', 'listing', 'comments'] },
+      { not: { or: [
+        { peak: 'mweb_xpromo_modal_listing_click_retry_ios' },
+        { peak: 'mweb_xpromo_require_login_ios' },
+      ]}},
+      { or: [
+        { url: 'xpromopersistent' },
+        { variant: 'mweb_xpromo_persistent_ios:treatment' },
+      ] },
+    ],
+  },
+  [VARIANT_XPROMO_PERSISTENT_ANDROID]: {
+    and: [
+      { allowedDevices: [ANDROID] },
+      { allowedPages: ['index', 'listing', 'comments'] },
+      { not: { or: [
+        { peak: 'mweb_xpromo_modal_listing_click_retry_android' },
+        { peak: 'mweb_xpromo_require_login_android' },
+      ]}},
+      { or: [
+        { url: 'xpromopersistent' },
+        { variant: 'mweb_xpromo_persistent_android:treatment' },
       ] },
     ],
   },
@@ -211,6 +324,60 @@ const config = {
       ] },
     ],
   },
+  [VARIANT_MODAL_LISTING_CLICK_IOS]: {
+    and: [
+      { notOptedOut: OPT_OUT_XPROMO_INTERSTITIAL.STORE_KEY },
+      { allowedDevices: [IPHONE] },
+      { allowNSFW: false },
+      { allowedPages: ['index', 'listing'] },
+      {
+        or: [
+          { url: 'xpromolistingclick' },
+          { variant: 'mweb_xpromo_modal_listing_click_retry_ios:hourly_dismissible' },
+          { variant: 'mweb_xpromo_modal_listing_click_retry_ios:hourly_nodismiss' },
+          { variant: 'mweb_xpromo_modal_listing_click_retry_ios:daily_dismissible' },
+          { variant: 'mweb_xpromo_modal_listing_click_retry_ios:daily_nodismiss' },
+        ],
+      },
+    ],
+  },
+  [VARIANT_MODAL_LISTING_CLICK_ANDROID]: {
+    and: [
+      { notOptedOut: OPT_OUT_XPROMO_INTERSTITIAL.STORE_KEY },
+      { allowedDevices: [ANDROID] },
+      { allowNSFW: false },
+      { allowedPages: ['index', 'listing'] },
+      {
+        or: [
+          { url: 'xpromolistingclick' },
+          { variant: 'mweb_xpromo_modal_listing_click_retry_android:hourly_dismissible' },
+          { variant: 'mweb_xpromo_modal_listing_click_retry_android:hourly_nodismiss' },
+          { variant: 'mweb_xpromo_modal_listing_click_retry_android:daily_dismissible' },
+          { variant: 'mweb_xpromo_modal_listing_click_retry_android:daily_nodismiss' },
+        ],
+      },
+    ],
+  },
+  [VARIANT_XPROMO_AD_LOADING_IOS]: {
+    and: [
+      { notOptedOut: OPT_OUT_XPROMO_INTERSTITIAL.STORE_KEY },
+      { allowedDevices: [IPHONE] },
+      { allowedPages: ['index', 'listing', 'comments'] },
+      { or: [
+        { variant: 'mweb_xpromo_ad_loading_ios:treatment' },
+      ]},
+    ],
+  },
+  [VARIANT_XPROMO_AD_LOADING_ANDROID]: {
+    and: [
+      { notOptedOut: OPT_OUT_XPROMO_INTERSTITIAL.STORE_KEY },
+      { allowedDevices: [ANDROID] },
+      { allowedPages: ['index', 'listing', 'comments'] },
+      { or: [
+        { variant: 'mweb_xpromo_ad_loading_android:treatment' },
+      ]},
+    ],
+  },
   [VARIANT_TITLE_EXPANDO]: {
     and: [
       { compact: true},
@@ -229,12 +396,70 @@ const config = {
       ] },
     ],
   },
-  [SHOW_AMP_LINK]: {
-    url: 'showamplink',
-    pageBucketPercent: {
-      seed: 'showamplink',
-      percentage: 2,
-    },
+  [SHOW_AMP_LINK]: true,
+  [VARIANT_DEFAULT_SRS_TUTORIAL]: {
+    url: 'experimentdefaultsrstutorial',
+    and: [{
+      loggedin: true,
+    }, {
+      variant: 'default_srs_holdout:tutorial',
+    }],
+  },
+  [VARIANT_DEFAULT_SRS_POPULAR]: {
+    url: 'experimentdefaultsrspopular',
+    and: [{
+      loggedin: true,
+    }, {
+      variant: 'default_srs_holdout:popular',
+    }],
+  },
+  [RULES_MODAL_ON_SUBMIT_CLICK_ANYWHERE]: {
+    and: [
+      { allowedPages: ['submit'] },
+      { subreddits: RULES_MODAL_EXPERIMENT_SUBREDDITS },
+      { loggedin: true },
+      { isMod: false },
+      { or: [
+        { url: 'rulesmodalonsubmitclickanywhere' },
+        { variant: 'mweb_rules_modal_on_submit:click_anywhere' },
+      ] },
+    ],
+  },
+  [RULES_MODAL_ON_SUBMIT_CLICK_BUTTON]: {
+    and: [
+      { allowedPages: ['submit'] },
+      { loggedin: true },
+      { isMod: false },
+      { subreddits: RULES_MODAL_EXPERIMENT_SUBREDDITS },
+      { or: [
+        { url: 'rulesmodalonsubmitclickbutton' },
+        { variant: 'mweb_rules_modal_on_submit:click_button' },
+      ] },
+    ],
+  },
+  [RULES_MODAL_ON_COMMENT_CLICK_ANYWHERE]: {
+    and: [
+      { allowedPages: ['comments'] },
+      { loggedin: true },
+      { isMod: false },
+      { subreddits: RULES_MODAL_EXPERIMENT_SUBREDDITS },
+      { or: [
+        { url: 'rulesmodaloncommentclickanywhere' },
+        { variant: 'mweb_rules_modal_on_comment:click_anywhere' },
+      ] },
+    ],
+  },
+  [RULES_MODAL_ON_COMMENT_CLICK_BUTTON]: {
+    and: [
+      { allowedPages: ['comments'] },
+      { loggedin: true },
+      { isMod: false },
+      { subreddits: RULES_MODAL_EXPERIMENT_SUBREDDITS },
+      { or: [
+        { url: 'rulesmodaloncommentclickbutton' },
+        { variant: 'mweb_rules_modal_on_comment:click_button' },
+      ] },
+    ],
   },
 };
 
@@ -245,7 +470,11 @@ const SEO_REFERRERS = [
 ];
 
 flags.addRule('loggedin', function(val) {
-  return (!!this.state.user && !this.state.user.loggedOut) === val;
+  return (
+    !!this.state.user && 
+    !this.state.user.loggedOut && 
+    this.state.user.user_name
+  ) === val;
 });
 
 flags.addRule('users', function(users) {
@@ -284,33 +513,53 @@ flags.addRule('subreddit', function (name) {
   return subreddit.toLowerCase() === name.toLowerCase();
 });
 
-const firstBuckets = new Set();
+flags.addRule('subreddits', function (subredditNames) {
+  const subreddit = getSubreddit(this.state);
+  if (!subreddit) {
+    return false;
+  }
+
+  return subredditNames.map(n => n.toLowerCase()).includes(subreddit.toLowerCase());
+});
+
+flags.addRule('isMod', function(val) {
+  let userIsMod = false;
+  const subreddit = getSubreddit(this.state);
+  const moderatingSubreddits = this.state.moderatingSubreddits;
+  if (subreddit && moderatingSubreddits && moderatingSubreddits.names) {
+    const names = moderatingSubreddits.names.map(n => n.toLowerCase());
+    userIsMod = names.includes(subreddit.toLowerCase());
+  }
+  return userIsMod === val;
+});
+
+flags.addRule('peak', function(experimentName) {
+  const experimentData = getExperimentData(this.state, experimentName);
+  if (!experimentData) {
+    return false;
+  }
+
+  const { variant } = experimentData;
+  const result = (variant && variant !== 'control_1' && variant !== 'control_2');
+  return result;
+});
 
 flags.addRule('variant', function (name) {
   const [experiment_name, checkedVariant] = name.split(':');
   const experimentData = getExperimentData(this.state, experiment_name);
+
   if (experimentData) {
-    const { variant, experiment_id, owner } = experimentData;
+    const { variant } = experimentData;
+    const firstBuckets = this.state.xpromo.serverSide.firstBuckets;
+    const isNotFiredOnServer = (firstBuckets.indexOf(experiment_name)<0);
 
-    // we only want to bucket the user once per session for any given experiment.
-    // to accomplish this, we're going to use the fact that featureFlags is a
-    // singleton, and use `firstBuckets` (which is in this module's closure's
-    // scope) to keep track of which experiments we've already bucketed.
-    if (this.state.meta.env === 'CLIENT' && !firstBuckets.has(experiment_name)) {
-      firstBuckets.add(experiment_name);
-
-      const eventTracker = getEventTracker();
-      const payload = {
-        ...getBasePayload(this.state),
-        experiment_id,
-        experiment_name,
-        variant,
-        owner: owner || null,
-      };
-
-      eventTracker.track('bucketing_events', 'cs.bucket', omitBy(payload, isNull));
+    // Here the "trackBucketingEvents" should be fired only on the Client Side 
+    // For the Server Side it's better to run "trackBucketingEvents" manually
+    // And of course we need to be shure that this event is not fired twice 
+    // (both on the Client and Server sides)
+    if (this.state.meta.env === 'CLIENT' && isNotFiredOnServer) {
+      trackBucketingEvents(this.state, experimentData);
     }
-
     return variant === checkedVariant;
   }
   return false;
@@ -461,7 +710,7 @@ export const isNSFWPage = state => {
   }
 
   if (subredditName) {
-    const subreddit = state.subreddits[subredditName];
+    const subreddit = state.subreddits[subredditName.toLowerCase()];
     if (subreddit && subreddit.over18) {
       return true;
     }

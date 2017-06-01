@@ -64,7 +64,33 @@ export const VISITED_POSTS_COUNT = 20;
 
 export const RECENT_CLICKS_LENGTH = 5;
 
-export const XPROMO_INTERSTITIAL_OPT_OUT = 'no_xpromo_interstitial';
+export const XPROMO_MODAL_LISTING_CLICK_NAME = 'modal_listing_click_retry';
+
+export const OPT_OUT_XPROMO_INTERSTITIAL = {
+  STORE_KEY : 'xpromoInterstitial',
+  URL_FLAG : 'no_xpromo_interstitial',
+};
+
+/**
+ * Listing clicks have a target type,
+ * i.e. if you click on the username, the deeplink goes to the user profile,
+ * and the target type is 'user'
+ */
+export const LISTING_CLICK_TYPES = {
+  AUTHOR: 'author',
+  COMMENTS_LINK: 'comments_link',
+  CONTENT: 'content',
+  DOMAIN_LINK: 'domain_link',
+  FOOTER: 'footer',
+  FOOTER_DROPDOWN: 'footer_dropdown',
+  MOD_SHIELD: 'mod_shield', // we should never block mod actions,
+  // if we see this in anayltics it indicates a bug with our implementation
+  OTHER: 'other',
+  SUBREDDIT: 'subreddit',
+  THUMBNAIL: 'thumbnail',
+  TITLE: 'title',
+  VOTE_CONTROLS: 'vote_controls',
+};
 
 // Post content
 
@@ -76,12 +102,11 @@ export const BANNER_URLS_DIRECT = {
   IOS: 'https://itunes.apple.com/us/app/reddit-the-official-app/id1064216828',
   ANDROID: 'https://play.google.com/store/apps/details?id=com.reddit.frontpage',
 };
-/* eslint-enable */
 
 // feature flags
 export const flags = {
   BETA: 'beta',
-  SMARTBANNER: 'banner',
+  XPROMOBANNER: 'banner',
   USE_BRANCH: 'useBranch',
   VARIANT_NEXTCONTENT_BOTTOM: 'experimentNextContentBottom',
   VARIANT_RECOMMENDED_BOTTOM: 'experimentRecommendedBottom',
@@ -94,23 +119,72 @@ export const flags = {
   VARIANT_RECOMMENDED_BY_POST_HOT: 'experimentRecommendedByPostHot',
   VARIANT_RECOMMENDED_SIMILAR_POSTS: 'experimentRecommendedSimilarPosts',
   VARIANT_SUBREDDIT_HEADER: 'experimentSubredditHeader',
+  VARIANT_TITLE_EXPANDO: 'experimentTitleExpando',
+  VARIANT_MIXED_VIEW: 'experimentMixedView',
+  SHOW_AMP_LINK: 'showAmpLink',
+
+  // Removing defaults experiment
+  VARIANT_DEFAULT_SRS_TUTORIAL: 'experimentDefaultSrsTutorial',
+  VARIANT_DEFAULT_SRS_POPULAR: 'experimentDefaultSrsPopular',
+
+  // RULES
+  RULES_MODAL_ON_COMMENT_CLICK_ANYWHERE: 'rulesModalOnCommentClickAnywhere',
+  RULES_MODAL_ON_COMMENT_CLICK_BUTTON: 'rulesModalOnCommentClickButton',
+  RULES_MODAL_ON_SUBMIT_CLICK_ANYWHERE: 'rulesModalOnSubmitClickAnywhere',
+  RULES_MODAL_ON_SUBMIT_CLICK_BUTTON: 'rulesModalOnSubmitClickButton',
+
+  // XPromo Login Required
   VARIANT_XPROMO_LOGIN_REQUIRED_IOS: 'experimentXPromoLoginRequiredIOS',
   VARIANT_XPROMO_LOGIN_REQUIRED_ANDROID: 'experimentXPromoLoginRequiredAndroid',
   VARIANT_XPROMO_LOGIN_REQUIRED_IOS_CONTROL: 'experimentXPromoLoginRequiredIOSControl',
   VARIANT_XPROMO_LOGIN_REQUIRED_ANDROID_CONTROL: 'experimentXPromoLoginRequiredAndroidControl',
+
+  // XPromo Comments Interstitial
   VARIANT_XPROMO_INTERSTITIAL_COMMENTS_IOS: 'experimentXPromoInterstitialCommentsIos',
   VARIANT_XPROMO_INTERSTITIAL_COMMENTS_ANDROID: 'experimentXPromoInterstitialCommentsAndroid',
-  VARIANT_TITLE_EXPANDO: 'experimentTitleExpando',
-  VARIANT_MIXED_VIEW: 'experimentMixedView',
-  SHOW_AMP_LINK: 'showAmpLink',
+
+  // XPromo Modal Listing Click
+  VARIANT_MODAL_LISTING_CLICK_IOS: 'experimentXPromoModalListingClickRetryIOS',
+  VARIANT_MODAL_LISTING_CLICK_ANDROID: 'experimentXPromoModalListingClickRetryAndroid',
+
+  // XPromo Interstitial Frequrency
+  VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_IOS: 'experimentXPromoInterstitialFrequencyIos',
+  VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_ANDROID: 'experimentXPromoInterstitialFrequencyAndroid',
+  VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_IOS_CONTROL: 'experimentXPromoInterstitialFrequencyIosControl',
+  VARIANT_XPROMO_INTERSTITIAL_FREQUENCY_ANDROID_CONTROL: 'experimentXPromoInterstitialFrequencyAndroidControl',
+
+  // XPromo Persistent Banner
+  VARIANT_XPROMO_PERSISTENT_IOS: 'experimentXPromoPersistentIos',
+  VARIANT_XPROMO_PERSISTENT_ANDROID: 'experimentXPromoPersistentAndroid',
+
+  // Ad loading (preloader and Mobile App redirect button)
+  // Note: client and server side rendering
+  VARIANT_XPROMO_AD_LOADING_IOS: 'experimentXPromoAdLoadingIos',
+  VARIANT_XPROMO_AD_LOADING_ANDROID: 'experimentXPromoAdLoadingAndroid',
 };
 
-export const xpromoDisplayTheme = {
-  USUAL: 'transparent',
-  MINIMAL: 'black_banner_fixed_bottom',
+// Now we have 2 different types of XPromo
+// 1) interstitial banners (USUAL, MINIMAL, PERSIST...)
+// 2) main and comments ad loader (main, comments)
+export const XPROMO_TYPES = {
+  INTERSTITIAL: 'interstitial',         // All interstitials banners
+  ADLOADING: 'ad_loading',              // App button inside the preloader
 };
 
-export const themes = {
+export const XPROMO_ADLOADING_TYPES = {
+  MAIN: 'ad_loading_main',
+  COMMENTS: 'ad_loading_comment',
+};
+
+export const XPROMO_DISPLAY_THEMES = {
+  USUAL: 'transparent',                 // Banner with transparency and subtext
+  LOGIN: 'require_login',               // ...same as USUAL but with login link instead of subtext
+  MINIMAL: 'black_banner_fixed_bottom', // Black banner in the fixed bottom position and dismiss link
+  PERSIST: 'persistent_banner',         // ...same as MINIMAL but without dismiss link
+  ADLOADING: 'ad_loading',
+};
+
+export const COLOR_SCHEME = {
   NIGHTMODE: 'nightmode',
   DAYMODE: 'daymode',
 };
@@ -125,4 +199,26 @@ export const loginErrors = {
 
 export const genericErrors = {
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+};
+
+export const EVERY_HOUR = 'every_hour';
+export const EVERY_DAY = 'every_day';
+export const EVERY_THREE_DAYS = 'every_three_days';
+export const EVERY_WEEK = 'every_week';
+export const EVERY_TWO_WEEKS = 'every_two_weeks';
+
+const HOUR_IN_MS = 60 * 60 * 1000;
+
+export const EXPERIMENT_FREQUENCY_VARIANTS = {
+  [EVERY_HOUR]: HOUR_IN_MS,
+  [EVERY_DAY]: 24 * HOUR_IN_MS,
+  [EVERY_THREE_DAYS]: 3 * 24 * HOUR_IN_MS,
+  [EVERY_WEEK]: 1 * 7 * 24 * HOUR_IN_MS,
+  [EVERY_TWO_WEEKS]: 2 * 7 * 24 * HOUR_IN_MS,
+};
+
+export const LOCAL_STORAGE_KEYS = {
+  BANNER_LAST_CLOSED : 'bannerLastClosed',
+  XPROMO_LAST_MODAL_CLICK: 'lastModalListingClick',
+  BANNER_PERSIST_SHOWED : 'lastPersistBannerShowed',
 };

@@ -2,16 +2,33 @@
 @import (reference) '~app/less/mixins/importAll';
 @import (reference) '~app/less/themes/themeify';
 
-
 .DualPartInterstitialFooter {
-  position: absolute;
-  padding-bottom: 16px;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: @z-index-navbar + 2;
-  background-color: @white;
-  text-align: center;
+  .themeifyXpromo(
+    @common: {
+      position: absolute;
+      padding-bottom: 16px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: @z-index-navbar + 2;
+      color: @semi-black-text;
+      background-color: @white;
+      text-align: center;
+    },
+    @minimal: {
+      background-color: @semi-black-text;
+      &__subtitle{ color: @white; }
+      &__bulletList{ display: none; }
+    },
+    @persist: {
+      padding: 15px 0;
+      background-color: @semi-black-text;
+      &__subtitle,
+      &__dismissal,
+      &__bulletList{ display: none; }
+      &__button{ margin-bottom: 0; margin-top: 0; }
+    }
+  );
 
   &__subtitle {
     font-weight: bold;
@@ -65,27 +82,6 @@
     &.icon-compact {
       position: relative;
       left: -2px;
-    }
-  }
-
-  &__button {
-    display: inline-block;
-    padding: 0 20px;
-    font-size: 14px;
-    height: 48px;
-    line-height: 48px;
-    text-align: center;
-    margin: @grid-size @grid-size*3 @half-grid-size;
-    width: calc(100% ~ '-' @grid-size*6);
-    max-width: 320px;
-    border-radius: 5px;
-    text-transform: uppercase;
-
-    background-color: @orangered;
-    color: @white;
-
-    &:hover {
-      background-color: darken(@orangered, 10%);
     }
   }
 

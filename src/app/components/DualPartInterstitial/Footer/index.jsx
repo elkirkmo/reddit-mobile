@@ -2,110 +2,45 @@ import './styles.less';
 
 import React from 'react';
 import { connect } from 'react-redux';
-import { createSelector } from 'reselect';
-import url from 'url';
+import { createStructuredSelector } from 'reselect';
+import { getSubredditNamePrefixed } from 'lib/getSubredditFromState';
+import { XPROMO_DISPLAY_THEMES as THEME } from 'app/constants';
+import { xpromoTheme } from 'app/selectors/xpromo';
+import getXpromoTheme from 'lib/xpromoTheme';
 
-import { redirect } from 'platform/actions';
-import * as xpromoActions from 'app/actions/xpromo';
-import { XPROMO_DISMISS, xPromoExtraScreenViewData } from 'lib/eventUtils';
-import getSubreddit from 'lib/getSubredditFromState';
-import { getBranchLink } from 'lib/smartBannerState';
-import {
-  loginRequiredEnabled as requireXPromoLogin,
-  isPartOfXPromoExperiment,
-  currentExperimentData,
-} from 'app/selectors/xpromo';
-
-const List = () => {
-  return (
-    <div className='DualPartInterstitialFooter__bulletList'>
-      <div className='DualPartInterstitialFooter__bulletItem'>
-        <span className='DualPartInterstitialFooter__bulletIcon icon icon-controversial' />
-        50% Faster
-      </div>
-      <div className='DualPartInterstitialFooter__bulletItem'>
-        <span className='DualPartInterstitialFooter__bulletIcon icon icon-compact' />
-        Infinite Scroll
-      </div>
-      <div className='DualPartInterstitialFooter__bulletItem'>
-        <span className='DualPartInterstitialFooter__bulletIcon icon icon-play_triangle' />
-        Autoplay GIFs
-      </div>
-    </div>
-  );
-};
+import AppButton from 'app/components/DualPartInterstitial/AppButton';
+import BulletList from 'app/components/DualPartInterstitial/Footer/BulletList';
+import DismissLink from 'app/components/DualPartInterstitial/Footer/DismissLink';
 
 class DualPartInterstitialFooter extends React.Component {
-
-  componentDidMount() {
-    const { dispatch, requireLogin } = this.props;
-    if (requireLogin) {
-      dispatch(xpromoActions.loginRequired());
-    }
+  buttonProps() {
+    const { xpromoTheme } = this.props;
+    return {
+      title: (xpromoTheme === THEME.PERSIST ? 'Open in app' : 'Continue'),
+      visitTrigger: getXpromoTheme(xpromoTheme).visitTrigger,
+      interstitialType: xpromoTheme,
+    };
   }
 
-  onClose = () => {
-    const { dispatch, requireLogin } = this.props;
-    if (requireLogin) {
-      dispatch(redirect(this.loginLink()));
-    } else {
-      dispatch(xpromoActions.trackXPromoEvent(XPROMO_DISMISS, { dismiss_type: 'link' }));
-      dispatch(xpromoActions.close());
-    }
-  }
-
-  loginLink() {
-    // note that we create and pass in the login link from the interstitial
-    // because creating branch links require window. Since login is sometimes
-    // rendered from the server, we have to do this here.
-    const { nativeLoginLink } = this.props;
-    return url.format({
-      pathname: '/login',
-      query: { 'native_app_promo': 'true', 'native_app_link': nativeLoginLink },
-    });
+  subtitleText() {
+    const { subredditNamePrefixed } = this.props;
+    const pageName = subredditNamePrefixed ? subredditNamePrefixed : 'Reddit';
+    return `View ${ pageName } in the app because you deserve the best.`;
   }
 
   render() {
-    const {
-      subredditName,
-      nativeInterstitialLink,
-      navigator,
-      requireLogin,
-    } = this.props;
-
-    let dismissal;
-
-    if (requireLogin) {
-      dismissal = (
-        <span className='DualPartInterstitialFooter__dismissalText'>
-          or <a className='DualPartInterstitialFooter__dismissalLink' onClick={ this.onClose } >login</a> to the mobile site
-        </span>
-      );
-    } else {
-      dismissal = (
-        <span className='DualPartInterstitialFooter__dismissalText'>
-          or go to the <a className='DualPartInterstitialFooter__dismissalLink' onClick={ this.onClose } >mobile site</a>
-        </span>
-      );
-    }
-
-    const pageName = subredditName ? `r/${ subredditName }` : 'Reddit';
-    const subtitleText = `View ${ pageName } in the app because you deserve the best.`;
-
     return (
       <div className='DualPartInterstitialFooter'>
         <div className='DualPartInterstitialFooter__content'>
           <div className='DualPartInterstitialFooter__subtitle'>
-            { subtitleText }
+            { this.subtitleText() }
           </div>
-          <List />
-          <div className='DualPartInterstitialFooter__button'
-            onClick={ navigator(nativeInterstitialLink) }
-          >
-            Continue
+          <BulletList />
+          <div className='DualPartInterstitialFooter__button'>
+            <AppButton { ...this.buttonProps() } />
           </div>
           <div className='DualPartInterstitialFooter__dismissal'>
-            { dismissal }
+            <DismissLink />
           </div>
         </div>
       </div>
@@ -113,49 +48,9 @@ class DualPartInterstitialFooter extends React.Component {
   }
 }
 
-function createNativeAppLink(state, linkType) {
-  let payload = { 
-    utm_source: 'xpromo', 
-    utm_content: linkType, 
-  };
-
-  if (isPartOfXPromoExperiment(state)) {
-    let experimentData = {};
-
-    if (currentExperimentData(state)) {
-      const { experiment_name, variant } = currentExperimentData(state);
-      experimentData = {
-        utm_name: experiment_name,
-        utm_term: variant,
-      };
-    }
-    payload = {
-      ...payload,
-      ...experimentData,
-      utm_medium: 'experiment',
-    };
-
-  } else {
-    payload = { ...payload, utm_medium: 'interstitial' };
-  }
-
-  payload = {
-    ...payload,
-    ...xPromoExtraScreenViewData(state),
-  };
-
-  return getBranchLink(state, payload);
-}
-
-const selector = createSelector(
-  getSubreddit,
-  requireXPromoLogin,
-  state => linkType => createNativeAppLink(state, linkType),
-  (subredditName, requireLogin, createLink) => {
-    const nativeInterstitialLink = createLink('interstitial');
-    const nativeLoginLink = createLink('login');
-    return { subredditName, requireLogin, nativeInterstitialLink, nativeLoginLink };
-  }
-);
+const selector = createStructuredSelector({
+  xpromoTheme: state => xpromoTheme(state),
+  subredditNamePrefixed: getSubredditNamePrefixed,
+});
 
 export default connect(selector)(DualPartInterstitialFooter);

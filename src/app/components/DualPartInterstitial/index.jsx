@@ -4,33 +4,39 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect';
 
+import cx from 'lib/classNames';
+import getXpromoTheme from 'lib/xpromoTheme';
 import { getDevice } from 'lib/getDeviceFromState';
+import XPromoWrapper from 'app/components/XPromoWrapper';
 import DualPartInterstitialHeader from 'app/components/DualPartInterstitial/Header';
 import DualPartInterstitialFooter from 'app/components/DualPartInterstitial/Footer';
-import XPromoWrapper from 'app/components/XPromoWrapper';
+
 import {
-  logAppStoreNavigation,
-  navigateToAppStore,
-  promoClicked,
-} from 'app/actions/xpromo';
-import { xpromoThemeIsUsual, scrollPastState } from 'app/selectors/xpromo';
+  xpromoTheme,
+  scrollPastState,
+  isXPromoPersistentActive,
+} from 'app/selectors/xpromo';
 
 export function DualPartInterstitial(props) {
-  const { scrollPast, xpromoThemeIsUsualState} = props;
-  const classesName = ['DualPartInterstitial'];
+  const { 
+    mixin,
+    scrollPast,
+    xpromoTheme,
+    isXPromoPersistentActive,
+  } = props;
 
-  if (scrollPast) {
-    classesName.push('fadeOut');
-  }
-  if (!xpromoThemeIsUsualState) {
-    classesName.push('m-minimal');
-  }
+  const CLASS = 'DualPartInterstitial';
+  const themeDisplayClass = getXpromoTheme(
+    xpromoTheme,
+    scrollPast,
+    isXPromoPersistentActive
+  ).displayClass;
 
   return (
     <XPromoWrapper>
-      <div className={ classesName.join(' ') }>
-        <div className={ `${classesName[0]}__content` }>
-          <div className={ `${classesName[0]}__common` }>
+      <div className={ cx(CLASS, themeDisplayClass, mixin) }>
+        <div className={ `${CLASS}__content` }>
+          <div className={ `${CLASS}__common` }>
             <DualPartInterstitialHeader { ...props } />
             <DualPartInterstitialFooter { ...props } />
           </div>
@@ -43,42 +49,11 @@ export function DualPartInterstitial(props) {
 export const selector = createSelector(
   getDevice,
   scrollPastState,
-  (state => xpromoThemeIsUsual(state)),
-  (device, scrollPast, xpromoThemeIsUsualState) => ({
-    device, 
-    scrollPast, 
-    xpromoThemeIsUsualState,
+  xpromoTheme,
+  isXPromoPersistentActive,
+  (device, scrollPast, xpromoTheme, isXPromoPersistentActive) => ({
+    device, scrollPast, xpromoTheme, isXPromoPersistentActive,
   }),
 );
 
-const mapDispatchToProps = dispatch => {
-  let preventExtraClick = false;
-  return {
-    navigator: (visitTrigger, url) => (async () => {
-      // Prevention of additional click events
-      // while the Promise dispatch is awaiting
-      if (!preventExtraClick) {
-        preventExtraClick = true;
-        await dispatch(logAppStoreNavigation(visitTrigger));
-        dispatch(promoClicked());
-        dispatch(navigateToAppStore(url));
-        preventExtraClick = false;
-      }
-    }),
-  };
-};
-
-const mergeProps = (stateProps, dispatchProps, ownProps) => {
-  const { xpromoThemeIsUsualState } = stateProps;
-  const { navigator: dispatchNavigator } = dispatchProps;
-  const visitTrigger = xpromoThemeIsUsualState ? 'interstitial_button' : 'banner_button';
-
-  return {
-    ...stateProps,
-    ...dispatchProps,
-    ...ownProps,
-    navigator: url => dispatchNavigator(visitTrigger, url),
-  };
-};
-
-export default connect(selector, mapDispatchToProps, mergeProps)(DualPartInterstitial);
+export default connect(selector)(DualPartInterstitial);

@@ -1,7 +1,7 @@
 @import (reference) '~app/less/variables';
+@import (reference) '~app/less/themes/themeify';
 
 .TransparentOverlay {
-
   &__overlay {
     position: absolute;
     z-index: @z-index-navbar + 1;
@@ -13,5 +13,13 @@
   &__childContainer {
     height: 100%;
     overflow: hidden;
+    padding-top: @top-nav-height;
   }
+}
+
+.DualPartInterstitialHeader {
+  .themeifyXpromo(
+    @minimal: { display: none; },
+    @persist: { display: none; }
+  );
 }

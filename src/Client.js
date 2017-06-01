@@ -20,8 +20,8 @@ import reduxMiddleware from 'app/reduxMiddleware';
 import ravenMiddleware from 'app/reduxMiddleware/raven';
 import { sendTimings, onHandlerCompleteTimings } from 'lib/timing';
 import Session from 'app/models/Session';
-import * as xpromoActions from 'app/actions/xpromo';
 import Preferences from 'apiClient/models/Preferences';
+import * as xpromoActionsClientOnly from 'app/actions/xpromoClientOnly';
 
 Raven
   .config(process.env.SENTRY_CLIENT_PUBLIC_URL, {
@@ -155,6 +155,13 @@ const client = Client({
           data.optOuts = JSON.parse(optOuts);
         }
       } catch (e) { console.warn(e); }
+
+      try {
+        const rulesModal = window.localStorage.rulesModal;
+        if (rulesModal !== undefined) {
+          data.rulesModal = JSON.parse(rulesModal);
+        }
+      } catch (e) { console.warn(e); }
     }
 
     return data;
@@ -168,5 +175,7 @@ isShell = client.getState().platform.shell;
 client.dispatch(platformActions.activateClient());
 
 if (isShell) {
-  client.dispatch(xpromoActions.checkAndSet());
+  // We need to use this action right here, because
+  // the branch SDK will use the global window object
+  client.dispatch(xpromoActionsClientOnly.checkAndSet());
 }
